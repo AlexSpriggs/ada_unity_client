@@ -67,7 +67,7 @@ public class LoginGUI : MonoBehaviour
 	/// <summary>
 	/// Super User mode for debugging purposes
 	/// </summary>
-	private bool _isSuperUser = false;
+	//private bool _isSuperUser = false;
 	
 	private enum AuthStatus
 	{
