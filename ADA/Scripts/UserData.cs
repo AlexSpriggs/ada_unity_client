@@ -68,7 +68,7 @@ public class ADAData
 	//These get set by the Data Collection system do not set directly.
 	public string gameName {get; set;}
 	public string schema {get; set;}
-	public int timestamp { get; set; }
+	public float timestamp { get; set; }
 	public string session_token { get; set;}
 	
 	public string key { get; set; } //This is the only data that the game using ADA needs to set when sending data
