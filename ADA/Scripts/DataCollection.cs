@@ -48,6 +48,7 @@ public class DataCollection : MonoBehaviour
 	void Awake()
 	{
 		if (dc == null) dc = this;
+		if (cd != this) Destroy(this.gameObject);
 		collectionURL = serverURL + collectionPath;
 		DontDestroyOnLoad(this);
 		
@@ -96,7 +97,7 @@ public class DataCollection : MonoBehaviour
 		
 		data.gameName = GameInfo.GAME_NAME;
 		data.schema = GameInfo.SCHEMA;
-		data.timestamp = (int)Time.realtimeSinceStartup;
+		data.timestamp = Time.realtimeSinceStartup;
 		data.session_token = UserManager.session_token;
 		wrapper.data.Add(data);
 		//Debug.Log("add log");
