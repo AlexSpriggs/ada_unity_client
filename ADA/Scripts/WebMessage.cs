@@ -75,9 +75,8 @@ public class WebMessage : System.Object
 		
 		yield return www;
 		
-		Debug.Log(www.error);
-		if(www.error != null)
-		{
+		if(www.error != null) {
+            Debug.Log(www.error);
 			error = WebErrorCode.Error;
 			extendedError = www.error;
 			yield break;
@@ -122,7 +121,46 @@ public class WebMessage : System.Object
 		UTF8Encoding utf8 = new UTF8Encoding();
 		byte[] rawData = utf8.GetBytes(jsonData);
 		headers["Content-Type"] = "application/jsonrequest";
-		www = new WWW(url, rawData, headers);
+		www = new WWW(url,rawData,headers);
+		
+		yield return www;
+		
+		Debug.Log("finished json post: " + www.error);
+		if(www.error != null)
+		{
+			error = WebErrorCode.Error;
+			extendedError = www.error;
+			yield break;
+		}
+		
+		// there was no error for www check for an error reported from our ADA server
+		
+		try 
+		{
+			
+			ErrorData jerror = JsonMapper.ToObject<ErrorData>(www.text);
+			extendedError = jerror.error;
+			error = WebErrorCode.Error;
+			
+		}
+		catch(JsonException)
+		{
+         	
+		}
+		
+		
+	}
+
+	public IEnumerator PostNoData(string url)
+	{
+		error = WebErrorCode.None;
+		
+		// can add headers to post
+
+		Hashtable headers = new Hashtable();
+
+		headers["Content-Type"] = "application/jsonrequest";
+		www = new WWW(url);
 		
 		yield return www;
 		
@@ -179,8 +217,9 @@ public class WebMessage : System.Object
 		www = new WWW(url+"?auth_token="+auth_token.ToString(), rawData, headers);
 		
 		yield return www;
-		
+#if DISPLAY_DATACOLLECTION_LOG
 		Debug.Log("finished authenticated post: " + www.error);
+#endif
 		if(www.error != null)
 		{
 			error = WebErrorCode.Error;
