@@ -114,17 +114,18 @@ public class WebMessage : System.Object
 	public IEnumerator Postjson(string url, string jsonData)
 	{
 		error = WebErrorCode.None;
-		
+
 		// can add headers to post
 		Debug.Log(jsonData);
 		Hashtable headers = new Hashtable();
 		UTF8Encoding utf8 = new UTF8Encoding();
 		byte[] rawData = utf8.GetBytes(jsonData);
 		headers["Content-Type"] = "application/jsonrequest";
+		Debug.Log("Post " + url + " " + jsonData);
 		www = new WWW(url,rawData,headers);
-		
+
 		yield return www;
-		
+
 		Debug.Log("finished json post: " + www.error);
 		if(www.error != null)
 		{
@@ -171,25 +172,25 @@ public class WebMessage : System.Object
 			extendedError = www.error;
 			yield break;
 		}
-		
+
 		// there was no error for www check for an error reported from our ADA server
-		
+
 		try 
 		{
-			
+
 			ErrorData jerror = JsonMapper.ToObject<ErrorData>(www.text);
 			extendedError = jerror.error;
 			error = WebErrorCode.Error;
-			
+
 		}
 		catch(JsonException)
 		{
          	
 		}
-		
-		
+
+
 	}
-	
+
 	/// <summary>
 	///Post an authenticated message to ADA.  All posts to ADA will includ the auth_token and some json data. 
 	/// </summary>

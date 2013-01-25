@@ -48,20 +48,21 @@ public class DataCollection : MonoBehaviour
 	void Awake()
 	{
 		if (dc == null) dc = this;
-		if (cd != this) Destroy(this.gameObject);
+		if (dc != this) Destroy(this.gameObject);
 		collectionURL = serverURL + collectionPath;
 		DontDestroyOnLoad(this);
 		
 #if UNITY_IPHONE
-		logPath = Application.dataPath.Substring(0, Application.dataPath.Length - 23) + "Documents/";
+		logPath = Application.persistentDataPath; //.Substring(0, Application.dataPath.Length - 5) + "/Documents/";
 		if(Application.isEditor)
 		{
 			logPath = ".";
 		}
+		Debug.Log("********************" +Application.dataPath.Substring(0, Application.dataPath.Length - 5) + "/Documents/");
 #else
 		logPath = "";
 #endif
-		Debug.Log("********************" + Application.dataPath);
+		Debug.Log("********************" + Application.persistentDataPath);
 	}
 	
 	void Update()
@@ -151,11 +152,12 @@ public class DataCollection : MonoBehaviour
 		}
 		else
 		{
-			System.IO.File.AppendAllText(logPath+UserManager.playerName+UserManager.session_token+".data", stripedData);
+			System.IO.File.AppendAllText(logPath+"/"+UserManager.playerName+UserManager.session_token+".data", stripedData);
 		}
 		outgoingData = "";
 #endif
 		pushingData = false;
+
 	}
 	
 	/// <summary>
@@ -165,11 +167,13 @@ public class DataCollection : MonoBehaviour
 	{
 #if !UNITY_WEBPLAYER
 		StreamReader logFile;
+		Debug.Log("Push Local to Online");	
 		string line = "";
 		string outgoingData = "{\"data\":[";
 		Debug.Log("logPath == " + logPath);
-		string[] files = System.IO.Directory.GetFiles(logPath, ".data");
-		for(int i=0; i < files.Length; i++)
+		string[] files = System.IO.Directory.GetFiles(logPath, "*.data");
+		Debug.Log("File Count: " + files.Length);
+		for(int i=files.Length-1; i >= 0; i--)
 		{
 			Debug.Log("reading file: " + files[i]);
 			if(files[i].Contains(UserManager.playerName))
@@ -178,12 +182,13 @@ public class DataCollection : MonoBehaviour
 				outgoingData = outgoingData.Substring(0, outgoingData.Length - 1);  //remove trailing comma
 				outgoingData += "]}";  //add closing brackets.
 				dc.StartCoroutine(PushDataOnline(outgoingData));
+				System.IO.File.Delete(files[i]);
 			}
 			else
 			{
 				Debug.Log("skipping file from different user: " + files[i]);	
 			}
-			//System.IO.File.Delete(files[i]);
+		
 		}
 #endif
 		//Added since something goes wonky if we have a function with nothing in it...

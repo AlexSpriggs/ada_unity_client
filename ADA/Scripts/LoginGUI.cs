@@ -192,48 +192,15 @@ public class LoginGUI : MonoBehaviour
 		_rectLoginControlsiPhone.height -= styleDarkBox.padding.top+styleDarkBox.padding.bottom;
 
 
-		
-		
+
+
 		UserManager.userInfo = new UserData();
 		UserManager.isOnline = false;
 		UserManager.isLoggedIn = false;
 		state = AuthStatus.FIND_PREVIOUS_TOKEN;
-		//Check for pre-saved auth_token in the player preferences and use if present
-		if(!serialNumberLogin && !silentSignin )
-		{
-			if(PlayerPrefs.HasKey("Auth_token") )
-			{
-				UserManager.userInfo.auth_token = PlayerPrefs.GetString("Auth_token");
-				UserManager.playerName = PlayerPrefs.GetString("player_name");
-				state = AuthStatus.VALIDATE_TOKEN;
-			}
-		}
-		
-		
-		if(Application.isWebPlayer && state == AuthStatus.FIND_PREVIOUS_TOKEN)
-		{
-			//If we are in the webplayer check for an Auth_token that was passed in through javascript
-			state= AuthStatus.SHOW_LOGIN;
-			if(webGuestAutoLogin)
-			{
-				loginName = "guest@ada.dev.mirerca.com";
-				loginPassword = "eria123";
-				UpdateLinks();
-				StartCoroutine(Login());
-				
-			}else{
-				
-				Application.ExternalCall("GetAuthToken");
-				
-			}
-		}
-		
-		if(!Application.isWebPlayer && state == AuthStatus.FIND_PREVIOUS_TOKEN)
-		{
-			state = AuthStatus.SHOW_LOGIN;	
-			
-		}
-		
+
+
+
 		//if we are on an iPhone check for a network connection
 #if UNITY_IPHONE
 		if(Application.internetReachability != NetworkReachability.ReachableViaLocalAreaNetwork && !serialNumberLogin)
@@ -249,16 +216,53 @@ public class LoginGUI : MonoBehaviour
 			UserManager.isLoggedIn = true;
 		}
 #endif
-		
-	
-	 	UserManager.session_token = DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
+		UserManager.session_token = DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
 		//state = LoginGUI.AuthStatus.NO_NET;
-		
+
+
+
+
+		//Check for pre-saved auth_token in the player preferences and use if present
+		if(!serialNumberLogin && !silentSignin )
+		{
+			if(PlayerPrefs.HasKey("Auth_token") )
+			{
+				UserManager.userInfo.auth_token = PlayerPrefs.GetString("Auth_token");
+				UserManager.playerName = PlayerPrefs.GetString("player_name");
+				state = AuthStatus.VALIDATE_TOKEN;
+			}
+		}
+
+		if(gameHandlesLogin)
+		{
+			//set it back to this even if we found an auth_token so that the game can handle switching users.
+			state = AuthStatus.FIND_PREVIOUS_TOKEN;
+			return;
+		}
+
+
+		if(Application.isWebPlayer && state == AuthStatus.FIND_PREVIOUS_TOKEN)
+		{
+			//If we are in the webplayer check for an Auth_token that was passed in through javascript
+			state= AuthStatus.SHOW_LOGIN;
+			Application.ExternalCall("GetAuthToken");
+
+		}
+
+		if(!Application.isWebPlayer && state == AuthStatus.FIND_PREVIOUS_TOKEN)
+		{
+			state = AuthStatus.SHOW_LOGIN;	
+
+		}
+
+
+
+	 
 		if(silentSignin && state != AuthStatus.NO_NET)
 		{
 			if(PlayerPrefs.HasKey("silent_signin_token") )
 			{
-				
+
 				loginName = PlayerPrefs.GetString("silent_signin_token") + "@ada.dev.mirerca.com";
 				loginPassword = PlayerPrefs.GetString("silent_signin_token");
 				DebugEx.Log("using previous silent signin" + loginName);
@@ -295,13 +299,63 @@ public class LoginGUI : MonoBehaviour
 			state = AuthStatus.VALIDATE_TOKEN;
 		}
 	}
-		
+
 	public bool IsUIOpen()
 	{
 		return (state != LoginGUI.AuthStatus.NO_NET && state != LoginGUI.AuthStatus.AUTHENTICATION_COMPLETE);
 	}
-	
-	
+
+		/// <summary>
+	/// Determines whether this instance is auth complete.
+	/// </summary>
+	/// <returns>
+	/// <c>true</c> if this instance is auth complete; otherwise, <c>false</c>.
+	/// </returns>
+	public static bool IsAuthComplete()
+	{
+		return UserManager.isLoggedIn;
+	}
+
+	/// <summary>
+	/// Returns a string with authentication status
+	/// </summary>
+	/// <returns>
+	/// The error.
+	/// </returns>
+	public static string GetAuthStatus()
+	{
+		return LoginGUI.use.status;
+	}
+
+	/// <summary>
+	/// Logins the ADA user if a user by that name does not exist it will create one and log them in. Returns true if the user 
+	/// </summary>
+	/// <param name='username'>
+	/// Username.
+	/// </param>
+	/// <param name='password'>
+	/// Password.
+	/// </param>
+	public static void LoginADAUser(string username, string password)
+	{
+
+		LoginGUI.use.loginName = username;
+		LoginGUI.use.loginPassword = password;
+		LoginGUI.use.UpdateLinks();
+		Debug.Log("Login ADA User: " + username);
+		LoginGUI.use.StartCoroutine(LoginGUI.use.Login());
+	}
+
+	public static void RegisterADAUser(string username, string password)
+	{
+
+		LoginGUI.use.loginName = username;
+		LoginGUI.use.loginPassword = password;
+		LoginGUI.use.loginPasswordConfirm = password;
+		LoginGUI.use.UpdateLinks();
+		LoginGUI.use.StartCoroutine(LoginGUI.use.Registration());
+	}
+
 	/// <summary>
 	/// Draw the GUI
 	/// </summary>
@@ -612,9 +666,12 @@ public class LoginGUI : MonoBehaviour
 	{  
 		status = "Trying to login...";
 		WebMessage webMessage = new WebMessage();
+		Debug.Log(status);
 		yield return StartCoroutine(webMessage.Post(loginURL, 
 		                                            "email", loginName,
 		                                            "password", loginPassword));
+
+		UserManager.playerName = loginName;
 		if(webMessage.error == WebErrorCode.Error)
         {
             status = webMessage.extendedError;
@@ -623,6 +680,10 @@ public class LoginGUI : MonoBehaviour
 			{
 				UserManager.isOnline = false;
 				state = AuthStatus.NO_NET;
+			}
+			if(status.Contains("401"))
+			{
+				status = "PLAYER NOT FOUND!";
 			}
 			//if we are trying to sign in silently and get ANY error just abort the login
 			if(silentSignin)
