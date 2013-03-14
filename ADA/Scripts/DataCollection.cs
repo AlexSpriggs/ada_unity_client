@@ -1,7 +1,11 @@
+#define DATA_COLLECTION_DEBUG
+
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+
+
 
 /// <summary>
 /// Handles the collection of research data from the game
@@ -41,6 +45,11 @@ public class DataCollection : MonoBehaviour
 	/// How often we push the data to the database or local log - in seconds.
 	/// </summary>
 	public int pushRate = 5;
+
+	private static ADAVirtualContext current_vc;
+	private static ADAPositionalContext current_pc;
+	private static ADAUnitStart unit_start;
+	private static ADAUnitEnd unit_end;
 	
 	/// <summary>
 	/// Initialize
@@ -63,6 +72,12 @@ public class DataCollection : MonoBehaviour
 		logPath = "";
 #endif
 		Debug.Log("********************" + Application.persistentDataPath);
+
+		current_vc = new ADAVirtualContext();
+		current_vc.level = Application.loadedLevelName;
+		current_pc = new ADAPositionalContext();
+		unit_start = new ADAUnitStart();
+		unit_end = new ADAUnitEnd();
 	}
 	
 	void Update()
@@ -86,20 +101,104 @@ public class DataCollection : MonoBehaviour
 		}
 		
 	}
-	
+
+	//Update the current virtual context with the level name
+	void OnLevelWasLoaded(int level) {
+
+		current_vc.level = Application.loadedLevelName;
+	}
+
+	/// <summary>
+	/// Updates the current positional context - this will be inserted into all ADAPlayerAction structures
+	/// </summary>
+	/// <param name='position'>
+	/// Position.
+	/// </param>
+	public static void UpdatePositionalContext(Transform position)
+	{
+		if (dc == null) return;
+		current_pc.setPosition(position.position.x, position.position.y, position.position.z);
+		current_pc.setRotation(position.rotation.eulerAngles.x, position.rotation.eulerAngles.y, position.rotation.eulerAngles.z);
+
+	}
+
+	public static void UpdatePositionalContext(Vector3 pos, Vector3 rot = new Vector3())
+	{
+		if (dc == null) return;
+		current_pc.setPosition(pos.x, pos.y, pos.z);
+		current_pc.setRotation(rot.x, rot.y, rot.z);
+
+	}
+
+	/// <summary>
+	/// Log a player action structure
+	/// </summary>
+	/// <param name='action'>
+	/// Action.
+	/// </param>
+	public static void LogPlayerAction(ADAPlayerAction action)
+	{
+		if (dc == null) return;
+		action.virtual_context = current_vc;
+		action.positional_context = current_pc;
+		action.ada_base_type = "ADAPlayerAction";
+		DataCollection.dc.WriteData(action);
+
+	}
+
+	public static void LogGameEvent(ADAGameEvent game_event)
+	{
+		if (dc == null) return;
+		game_event.virtual_context = current_vc;
+		game_event.ada_base_type = "ADAGameEvent";
+		DataCollection.dc.WriteData(game_event);
+	}
+
+	/// <summary>
+	/// Start a Unit of game play. 
+	/// </summary>
+	/// <param name='name'>
+	/// Name.
+	/// </param>
+	public static void StartUnit(ADAUnitStart start)
+	{
+		if (dc == null) return;
+		//Add this unit to the virtual context
+		current_vc.active_units.Add(start.name);
+		start.ada_base_type = "ADAUnitStart";
+		DataCollection.dc.WriteData(start);
+	}
+
+	/// <summary>
+	/// End a Unit of game play. 
+	/// </summary>
+	/// <param name='name'>
+	/// Name.
+	/// </param>
+	public static void EndUnit(ADAUnitEnd end)
+	{
+		if (dc == null) return;
+		//Add this unit to the virtual context
+		current_vc.active_units.Remove(end.name);
+		end.ada_base_type = "ADAUnitEnd";
+		DataCollection.dc.WriteData(end);
+	}
+
 	/// <summary>
 	/// Add data to the log
 	/// </summary>
 	/// <param name="data">
 	/// A <see cref="ADAData"/>
 	/// </param>
-	public static void WriteData(ADAData data)
+	private void WriteData(ADAData data)
 	{
 		
+		if (dc == null) return;
 		data.gameName = GameInfo.GAME_NAME;
 		data.schema = GameInfo.SCHEMA;
 		data.timestamp = Time.realtimeSinceStartup;
 		data.session_token = UserManager.session_token;
+		data.key = data.GetType().ToString();
 		wrapper.data.Add(data);
 		//Debug.Log("add log");
 		
@@ -120,19 +219,21 @@ public class DataCollection : MonoBehaviour
 		}
 		
 		WebMessage webMessage = new WebMessage();
+#if DATA_COLLECTION_DEBUG
 		Debug.Log("Writing Log Online");
 		Debug.Log(outgoingData);
+#endif
 		yield return dc.StartCoroutine(webMessage.PostAuthenticated(collectionURL, 
 		                                            UserManager.userInfo.auth_token, outgoingData ));
 		if(webMessage.error == WebErrorCode.Error)
         {
 			//we had an error so write the data locally.
-            Debug.Log(webMessage.extendedError);
+            //Debug.Log(webMessage.extendedError);
 			PushDataLocal(outgoingData);
             yield break;
         }
 		
-		Debug.Log("Online write complete");
+		//Debug.Log("Online write complete");
 		pushingData = false;
 		
 	}
@@ -142,10 +243,11 @@ public class DataCollection : MonoBehaviour
 	/// </summary>
 	private static void PushDataLocal(string outgoingData)
 	{
+		if (dc == null) return;
 #if !UNITY_WEBPLAYER
-		Debug.Log("Writing Log Local");	
+		//Debug.Log("Writing Log Local");	
 		string stripedData = outgoingData.Substring(9, outgoingData.Length - 11) + ",";
-		Debug.Log(stripedData);
+		//Debug.Log(stripedData);
 		if(Debug.isDebugBuild)
 		{
 			System.IO.File.AppendAllText(logPath+UserManager.session_token+".debug", stripedData);
@@ -165,6 +267,7 @@ public class DataCollection : MonoBehaviour
 	/// </summary>
 	public static void PushLocalToOnline()
 	{
+		if (dc == null) return;
 #if !UNITY_WEBPLAYER
 		StreamReader logFile;
 		Debug.Log("Push Local to Online");	

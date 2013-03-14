@@ -17,17 +17,17 @@ public class WebMessage : System.Object
 	/// error number of the last send message 
 	/// </summary>
 	public WebErrorCode error { get; set; }
-	
+
 	/// <summary>
 	/// the string either returned from www or our server explaining the error 
 	/// </summary>
 	public string extendedError { get; set; }
-	
+
 	/// <summary>
 	/// the WWW object associated with the WebMessage 
 	/// </summary>
 	public WWW www { get; private set; }
-	
+
 	/// <summary>
 	/// Post a message 
 	/// If the start of a value start with '{', then no '"' are added between the value
@@ -44,7 +44,7 @@ public class WebMessage : System.Object
 	public IEnumerator Post(string url, params string[] fields)
 	{
 		error = WebErrorCode.None;
-		
+
 		// create the form
 		string json = "{";
 		string fieldName, fieldValue;
@@ -53,12 +53,12 @@ public class WebMessage : System.Object
 			fieldName = fields[i];
 			fieldValue = fields[i+1];
 			json += "\"" +  fieldName + "\"" + ":";
-			
+
 			if(fieldValue.StartsWith("{"))
 				json += fieldValue.Substring(1);
 			else
 				json += "\"" + fieldValue + "\"";
-			
+
 			i = i + 2;
 			if(i < fields.Length)
 				json += ",";
@@ -70,35 +70,36 @@ public class WebMessage : System.Object
 		UTF8Encoding utf8 = new UTF8Encoding();
 		byte[] rawData = utf8.GetBytes(json);
 		headers["Content-Type"] = "application/jsonrequest";
+		Debug.Log("Post " + url);
 		//headers["Content-Length"] = json.Length;
 		www = new WWW(url, rawData, headers);
-		
+
 		yield return www;
-		
+
 		if(www.error != null) {
             Debug.Log(www.error);
 			error = WebErrorCode.Error;
 			extendedError = www.error;
 			yield break;
 		}
-		
+
 		// there was no error for www check for an error reported from our ADA server
-		
+
 		try 
 		{
-			
+
 			ErrorData jerror = JsonMapper.ToObject<ErrorData>(www.text);
 			extendedError = jerror.error;
 			error = WebErrorCode.Error;
-			
+
 		}
 		catch(JsonException)
 		{
          	
 		}
-		
+
 	}
-	
+
 	/// <summary>
 	///Post json data without authentication
 	/// </summary>
@@ -133,38 +134,38 @@ public class WebMessage : System.Object
 			extendedError = www.error;
 			yield break;
 		}
-		
+
 		// there was no error for www check for an error reported from our ADA server
-		
+
 		try 
 		{
-			
+
 			ErrorData jerror = JsonMapper.ToObject<ErrorData>(www.text);
 			extendedError = jerror.error;
 			error = WebErrorCode.Error;
-			
+
 		}
 		catch(JsonException)
 		{
          	
 		}
-		
-		
+
+
 	}
 
 	public IEnumerator PostNoData(string url)
 	{
 		error = WebErrorCode.None;
-		
+
 		// can add headers to post
 
 		Hashtable headers = new Hashtable();
 
 		headers["Content-Type"] = "application/jsonrequest";
 		www = new WWW(url);
-		
+
 		yield return www;
-		
+
 		Debug.Log("finished json post: " + www.error);
 		if(www.error != null)
 		{
@@ -209,14 +210,14 @@ public class WebMessage : System.Object
 	public IEnumerator PostAuthenticated(string url, string auth_token, string jsonData)
 	{
 		error = WebErrorCode.None;
-		
+
 		// can add headers to post
 		Hashtable headers = new Hashtable();
 		UTF8Encoding utf8 = new UTF8Encoding();
 		byte[] rawData = utf8.GetBytes(jsonData);
 		headers["Content-Type"] = "application/jsonrequest";
 		www = new WWW(url+"?auth_token="+auth_token.ToString(), rawData, headers);
-		
+
 		yield return www;
 #if DISPLAY_DATACOLLECTION_LOG
 		Debug.Log("finished authenticated post: " + www.error);
@@ -227,24 +228,24 @@ public class WebMessage : System.Object
 			extendedError = www.error;
 			yield break;
 		}
-		
+
 		// there was no error for www check for an error reported from our ADA server
-		
+
 		try 
 		{
-			
+
 			ErrorData jerror = JsonMapper.ToObject<ErrorData>(www.text);
 			extendedError = jerror.error;
 			error = WebErrorCode.Error;
-			
+
 		}
 		catch(JsonException)
 		{
          	
 		}
-		
-		
+
+
 	}
-	
+
 }
 	

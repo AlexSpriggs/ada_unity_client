@@ -8,67 +8,67 @@ using System;
 /// </summary>
 public class LoginGUI : MonoBehaviour
 {
-	
+
 
 	/// <summary>
 	/// The server url
 	/// </summary>
 	public string serverURL;
-	
+
 	/// <summary>
 	/// Have users log in with pre-created serial numbers for research data collection
 	/// </summary>
 	public bool serialNumberLogin;
 	public string serialSuffix;
 	public string serialPassword;
-	
+
 	/// <summary>
 	/// Never as the user for login info.  Create a unique id if one does not exist and try to connect to the server
 	/// all login fails should fail without asking the user for credentials.
 	/// </summary>
 	public bool silentSignin;
-	
-	public bool webGuestAutoLogin; //auto login as the guest account in the web build
-	
+
+	public bool gameHandlesLogin;
+
 	/// <summary>
 	/// The register url
 	/// </summary>
 	private string registerURL;
 	private string registerPath = "/users.json";
-	
+
 	/// <summary>
 	/// The login url
 	/// </summary>
 	private string loginURL;
 	private string loginPath = "/users/authenticate_for_token.json";
-	
+
 	/// <summary>
 	/// The validate token url
 	/// </summary>
 	private string validateURL;
 	private string validatePath = "?";
-		
+
 	/// <summary>
 	/// The background image for the login
 	/// </summary>
 	public GUITexture background;
-	
+
 	/// <summary>
 	/// The login name
 	/// </summary>
 	private string loginName = "";
-	
+
 	/// <summary>
 	/// The login password
 	/// </summary>
 	private string loginPassword = "";
 	private string loginPasswordConfirm = "";
-	
+
 	/// <summary>
 	/// Super User mode for debugging purposes
 	/// </summary>
 	//private bool _isSuperUser = false;
-	
+
 	private enum AuthStatus
 	{
 		NO_NET,
@@ -80,64 +80,64 @@ public class LoginGUI : MonoBehaviour
 		AUTHENTICATION_COMPLETE,
 		ERROR,
 		LOADING
-		
+
 	}
-	
+
 	private AuthStatus state;
-	
-	
+
+
 	/// <summary>
 	/// The status of the login
 	/// </summary>
 	private string status = "";
-	
+
 	/// <summary>
 	/// Is there an auth_token
 	/// </summary>
 	private bool hasToken;
-	
+
 	/// <summary>
 	/// Is the auth_token valid
 	/// </summary>
 	private bool isValid;
-		
+
 	private Rect _rectLoginControlsBG;
 	private Rect _rectLoginControls;
 	private Rect _rectLoginControlsiPhone;
 	//private GUIStyle styleLabelCenter;
 	private Vector2 worldScroll;
 	private int selGridIndex;
-	
+
 	//private WorldsData worldsJson;
 	//private PlayersData playersData;
-	
+
 	/// <summary>
 	/// The prefab containing all of the GUIStyles
 	/// </summary>
 	public GUIStyles styles;
-	
+
 	/// <summary>
 	/// the style to use for boxes throughout the gui
 	/// </summary>
 	private GUIStyle _styleBox;
-	
+
 	/// <summary>
 	/// singleton
 	/// </summary>
 	public static LoginGUI use = null;
-	
+
 	private bool isLoginUIUp;
-	
-	
+
+
 	//have we initialized
 	private bool initalized = false;
-	
+
 	/// <summary>
 	/// Initialize
 	/// </summary>
 	void Awake()
 	{
-		
+
 		// store singleton
 		if (use == null) use = this;
 		else if(GameObject.FindGameObjectsWithTag("ADA").Length > 1)
@@ -145,31 +145,31 @@ public class LoginGUI : MonoBehaviour
 			GameObject.Destroy(gameObject);
 		}
 		DontDestroyOnLoad(this);
-		
+
 	}
-	
+
 	void UpdateLinks()
 	{
 		// update the urls
 		registerURL = serverURL + registerPath;
 		loginURL = serverURL + loginPath;
 		validateURL = serverURL + validatePath;
-		
+
 	}
-	
+
 	void Start()
 	{	
 		if(initalized)
 		{
 			return;	
 		}
-		
+
 		initalized = true;
-		
+
 		// the box style in which most items float
 		_styleBox = styles.roundDarkBox;
-		
-		
+
+
 		// create the location of the login GUI
 		float width = Screen.width;
 		float height = Screen.height/2f;
@@ -184,7 +184,7 @@ public class LoginGUI : MonoBehaviour
 		_rectLoginControls.y += styleDarkBox.padding.top;
 		_rectLoginControls.width -= styleDarkBox.padding.left+styleDarkBox.padding.right;
 		_rectLoginControls.height -= styleDarkBox.padding.top+styleDarkBox.padding.bottom;
-		
+
 		_rectLoginControlsiPhone = _rectLoginControlsBG;
 		_rectLoginControlsiPhone.x += styleDarkBox.padding.left;
 		_rectLoginControlsiPhone.y = styleDarkBox.padding.top;
@@ -199,7 +199,7 @@ public class LoginGUI : MonoBehaviour
 		UserManager.isLoggedIn = false;
 		state = AuthStatus.FIND_PREVIOUS_TOKEN;
 
-
+		Debug.Log("ADA Login Init!");
 
 		//if we are on an iPhone check for a network connection
 #if UNITY_IPHONE
@@ -207,6 +207,8 @@ public class LoginGUI : MonoBehaviour
 		{
 			state = AuthStatus.NO_NET;	
 			UserManager.isLoggedIn = true;
+			Debug.Log("No Network");
+
 		}
 #else
 		//Check for valid ip address
@@ -265,7 +267,7 @@ public class LoginGUI : MonoBehaviour
 
 				loginName = PlayerPrefs.GetString("silent_signin_token") + "@ada.dev.mirerca.com";
 				loginPassword = PlayerPrefs.GetString("silent_signin_token");
-				DebugEx.Log("using previous silent signin" + loginName);
+				Debug.Log("using previous silent signin" + loginName);
 				UpdateLinks();
 				StartCoroutine(Login());
 			}
@@ -275,17 +277,17 @@ public class LoginGUI : MonoBehaviour
 				loginName = PlayerPrefs.GetString("silent_signin_token") + "@ada.dev.mirerca.com";
 				loginPassword = PlayerPrefs.GetString("silent_signin_token");
 				loginPasswordConfirm = PlayerPrefs.GetString("silent_signin_token");
-				DebugEx.Log("creating silent signin" + loginName);
+				Debug.Log("creating silent signin" + loginName);
 				UpdateLinks();
 				StartCoroutine(Registration());
-				
+
 			}
-				
+
 		}
-		
-		
+
+
 	}
-	
+
 	/// <summary>
 	/// Used for the webplayer authentication.  This will get called from the browsers javascript
 	/// </summary>
@@ -300,9 +302,9 @@ public class LoginGUI : MonoBehaviour
 		}
 	}
 
-	public bool IsUIOpen()
+	public static bool IsUIOpen()
 	{
-		return (state != LoginGUI.AuthStatus.NO_NET && state != LoginGUI.AuthStatus.AUTHENTICATION_COMPLETE);
+		return (LoginGUI.use.state != LoginGUI.AuthStatus.NO_NET && LoginGUI.use.state != LoginGUI.AuthStatus.AUTHENTICATION_COMPLETE);
 	}
 
 		/// <summary>
@@ -363,32 +365,32 @@ public class LoginGUI : MonoBehaviour
 	{	
 		if (silentSignin) return;
 		//We lost connection and need to re-authenticate
-		if(state == AuthStatus.AUTHENTICATION_COMPLETE && !UserManager.isLoggedIn)
-		{
-			state = AuthStatus.SHOW_LOGIN;
-		}
-		
+		//if(state == AuthStatus.AUTHENTICATION_COMPLETE && !UserManager.isLoggedIn)
+		//{
+		//	state = AuthStatus.SHOW_LOGIN;
+		//}
+
 		if(state == AuthStatus.VALIDATE_TOKEN)
 		{
 			//For now lets just pretend it worked
 			state = AuthStatus.AUTHENTICATION_COMPLETE;
 			UserManager.isOnline = true;
 			UserManager.isLoggedIn = true;
-			
+
 			//make the call to check if the auth_token we had found from a previous login is still valid
 			//state = AuthStatus.WAIT_FOR_VALIDATION;
 			//UpdateLinks();
 			//StartCoroutine(ValidateToken());
 		}
-		
+
 		if(state == AuthStatus.SHOW_LOGIN || state == AuthStatus.NO_NET || state == AuthStatus.SHOW_REGISTRATION)
 		{
 			DrawLogin();
 		}
-		
-		
+
+
 	}
-	
+
 	protected void	BeginLoginControlLayout() {
 		bool	virtualKeyboardVisible = false;
 #if UNITY_IPHONE
@@ -404,27 +406,30 @@ public class LoginGUI : MonoBehaviour
 		//}
 	}
 	
+	protected Rect	m_ScreenRect = new Rect(0,0,Screen.width,Screen.height);
+
 	/// <summary>
 	/// Draw the login GUI
 	/// </summary>
 	void DrawLogin()
 	{
-		
+
 		// draw background texture
-		GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height), background.texture);
-		
-		
+		if( background != null && background.texture != null ) {
+			GUI.DrawTexture(m_ScreenRect, background.texture);
+		}
+
 		// draw contents of login gui
 		BeginLoginControlLayout();
 		{
 			// title
 			//GUILayout.Label("LOGIN", styles.largeTextLight); //, _styles.styleLabelCenter);
-			
+
 			GUILayout.BeginHorizontal();
 			GUILayout.Label(styles.eriaLogo, GUILayout.Width(_rectLoginControls.width/4f) );
 			//GUILayout.EndHorizontal();
-			
-			
+
+
 			if(state == AuthStatus.SHOW_LOGIN)
 			{
 				GUILayout.BeginVertical();
@@ -451,7 +456,7 @@ public class LoginGUI : MonoBehaviour
 					UserManager.isOnline = false;
 					UserManager.isLoggedIn = true;
 					state = AuthStatus.AUTHENTICATION_COMPLETE;
-					
+
 				}
 				else
 				{
@@ -472,25 +477,25 @@ public class LoginGUI : MonoBehaviour
 					}
 					GUILayout.EndHorizontal();
 				}
-					
+
 			}
-			
+
 		}
 		GUILayout.EndArea();
-		
+
 		// process return key
 		// NOTE: doesn't seem to work when textbox has focus
 		//if (Event.current.Equals(Event.KeyboardEvent("return")))
 		//{
 		//	StartCoroutine(Login());
 		//}
-		
-		
+
+
 	}
-	
+
 	private void DrawNormalLogin()
 	{
-		
+
 		GUILayout.Space(50);
 		// username
 		GUILayout.BeginHorizontal();
@@ -499,8 +504,8 @@ public class LoginGUI : MonoBehaviour
 			loginName = GUILayout.TextField(loginName, GUILayout.Width(300), GUILayout.Height(30));
 		}
 		GUILayout.EndHorizontal();
-	
-	
+
+
 		// password
 		GUILayout.BeginHorizontal();
 		{
@@ -508,7 +513,7 @@ public class LoginGUI : MonoBehaviour
 			loginPassword = GUILayout.PasswordField(loginPassword, "*"[0], GUILayout.Width(300), GUILayout.Height(30));
 		}
 		GUILayout.EndHorizontal();
-	
+
 		// login buttons
 		GUILayout.BeginHorizontal();
 		{
@@ -529,9 +534,9 @@ public class LoginGUI : MonoBehaviour
 
 		// status of login
 		GUILayout.Label(status, styles.largeTextHighlighted);
-			
+
 	}
-	
+
 	private void DrawSerialLogin()
 	{
 		GUILayout.Space(50);
@@ -542,8 +547,8 @@ public class LoginGUI : MonoBehaviour
 			loginName = GUILayout.TextField(loginName, GUILayout.Width(300), GUILayout.Height(30));
 		}
 		GUILayout.EndHorizontal();
-	
-		
+
+
 
 		// login buttons
 		GUILayout.BeginHorizontal();
@@ -581,15 +586,15 @@ public class LoginGUI : MonoBehaviour
 					serialNumberLogin = false;	
 				}
 			}
-			
+
 		}
 		GUILayout.EndHorizontal();
 
 		// status of login
 		GUILayout.Label(status, styles.largeTextHighlighted);
-			
+
 	}
-	
+
 	private void DrawRegistartion()
 	{
 		GUILayout.Space(50);
@@ -600,8 +605,8 @@ public class LoginGUI : MonoBehaviour
 			loginName = GUILayout.TextField(loginName, GUILayout.Width(300), GUILayout.Height(30));
 		}
 		GUILayout.EndHorizontal();
-	
-	
+
+
 		// password
 		GUILayout.BeginHorizontal();
 		{
@@ -609,7 +614,7 @@ public class LoginGUI : MonoBehaviour
 			loginPassword = GUILayout.PasswordField(loginPassword, "*"[0], GUILayout.Width(300), GUILayout.Height(30));
 		}
 		GUILayout.EndHorizontal();
-		
+
 		//confirm password
 		GUILayout.BeginHorizontal();
 		{
@@ -617,7 +622,7 @@ public class LoginGUI : MonoBehaviour
 			loginPasswordConfirm = GUILayout.PasswordField(loginPasswordConfirm, "*"[0], GUILayout.Width(300), GUILayout.Height(30));
 		}
 		GUILayout.EndHorizontal();
-	
+
 		//button
 		GUILayout.BeginHorizontal();
 		{
@@ -632,11 +637,11 @@ public class LoginGUI : MonoBehaviour
 			}
 		}
 		GUILayout.EndHorizontal();
-		
+
 		// status of login
 		GUILayout.Label(status, styles.largeTextHighlighted);
 	}
-	
+
 	/// <summary>
 	/// Check to see if the auth_token from a previous login is still valid
 	/// </summary>
@@ -656,9 +661,9 @@ public class LoginGUI : MonoBehaviour
             yield break;
         }
 	}
-	
-	
-	
+
+
+
 	/// <summary>
 	/// Process the login button
 	/// </summary>
@@ -684,6 +689,9 @@ public class LoginGUI : MonoBehaviour
 			if(status.Contains("401"))
 			{
 				status = "PLAYER NOT FOUND!";
+				state = AuthStatus.AUTHENTICATION_COMPLETE;
+				UserManager.isOnline = false;
+				yield return 0;
 			}
 			//if we are trying to sign in silently and get ANY error just abort the login
 			if(silentSignin)
@@ -693,13 +701,13 @@ public class LoginGUI : MonoBehaviour
 			}
             yield break;
         }
-		
-       		
+
+       
 		// deserialize the login JSON text
 		//
 		try 
 		{
-			DebugEx.Log(webMessage.www.text);
+			Debug.Log(webMessage.www.text);
 			UserManager.userInfo = JsonMapper.ToObject<UserData>(webMessage.www.text);
 			UserManager.isOnline = true;
 			UserManager.isLoggedIn = true;
@@ -714,34 +722,34 @@ public class LoginGUI : MonoBehaviour
 				yield break;
 			}
 		}
-		
-	
-		DebugEx.Log(webMessage.www.text);
-		
+
+
+		Debug.Log(webMessage.www.text);
+
        
 		// login successfull so get the world list
         status = "";
-		
+
 		state = AuthStatus.AUTHENTICATION_COMPLETE;
-		
+
 		//save the auth_token for later
 		PlayerPrefs.SetString("Auth_token", UserManager.userInfo.auth_token);
 		PlayerPrefs.SetString("player_name", loginName);
-		
+
 		//Look for logs that were previously collected and push them to the database
 		DataCollection.PushLocalToOnline();
-		
-		
-		
+
+
+
 	}
-	
+
 	/// <summary>
 	/// Process the Registartion
 	/// </summary>
 	private IEnumerator Registration()
 	{  
 		status = "Trying to Register...";
-		
+
 		RegisterWrapper adaReg = new RegisterWrapper();
 		adaReg.user = new RegisterUser();
 		adaReg.user.email = loginName;
@@ -768,13 +776,13 @@ public class LoginGUI : MonoBehaviour
 			}
             yield break;
         }
-		
+
        		
 		// deserialize the login JSON text
 		//
 		try 
 		{
-			DebugEx.Log(webMessage.www.text);
+			Debug.Log(webMessage.www.text);
 			RegistrationSuccess success = JsonMapper.ToObject<RegistrationSuccess>(webMessage.www.text);
 			UserManager.userInfo.auth_token = success.authentication_token;
 			UserManager.isOnline = true;
@@ -785,7 +793,7 @@ public class LoginGUI : MonoBehaviour
 		{
             if(webMessage.error == WebErrorCode.None)
 			{
-				
+
 				try
 				{
 					RegistrationError error = JsonMapper.ToObject<RegistrationError>(webMessage.www.text);
@@ -804,7 +812,7 @@ public class LoginGUI : MonoBehaviour
 							status += "password: " + s + "\n";	
 						}
 					}
-					
+
 				}
 				catch(JsonException)
 				{
@@ -815,30 +823,30 @@ public class LoginGUI : MonoBehaviour
 				yield break;
 			}
 		}
-		
-	
-		DebugEx.Log(webMessage.www.text);
-		
+
+
+		Debug.Log(webMessage.www.text);
+
        
 		// login successfull so get the world list
         status = "";
-		
+
 		state = AuthStatus.AUTHENTICATION_COMPLETE;
-		
+
 		//save the auth_token for later
 		PlayerPrefs.SetString("Auth_token", UserManager.userInfo.auth_token);
 		PlayerPrefs.SetString("player_name", loginName);
-		
+
 		//Look for logs that were previously collected and push them to the database
 		DataCollection.PushLocalToOnline();
-		
-		
-		
 
-		
-		
+
+
+
+
+
 	}
-	
+
 	/// <summary>
 	/// Process the register button
 	/// </summary>
@@ -846,7 +854,7 @@ public class LoginGUI : MonoBehaviour
 	{
 		Application.OpenURL(registerURL);
 	}
-	
+
 	/// <summary>
 	/// Process the exit button
 	/// </summary>
@@ -854,6 +862,6 @@ public class LoginGUI : MonoBehaviour
 	{
 		Application.Quit();
 	}
-	
-	
+
+
 }

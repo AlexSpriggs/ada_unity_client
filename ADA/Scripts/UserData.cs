@@ -1,3 +1,4 @@
+using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
@@ -60,7 +61,7 @@ public class ADAwrapper
 }
 
 public class AdaInfo {
-	public static string ADA_VERSION = "adventurous_aardvark";
+	public static string ADA_VERSION = "bodacious_bonobo";
 }
 
 /// <summary>
@@ -75,15 +76,31 @@ public class ADAData
 	public string ADAVersion = AdaInfo.ADA_VERSION;
 	public float timestamp { get; set; }
 	public string session_token { get; set;}
-	
-	public string key { get; set; } //This is the only data that the game using ADA needs to set when sending data
+	public string ada_base_type { get; set;}
+	public string key { get; set; } 
+
 }
 
-//a structure for recording location information that can be used to build heatmaps.
-public class ADAPosition : ADAData
+/// <summary>
+/// ADA virtual context - this is not to be used directly for logging but to be included in other structures like player actions to establish the context of the action within the scope of the game
+/// </summary>
+public class ADAVirtualContext
 {
+
 	public string level;  //The name of the level(map, scene, stage, etc)
-	public string quest;  //Name of the quest - this should be unique
+	public List<string> active_units; //Names of all the currently active game units. This can be used as a flat list of tags for processing actions within the scope of the units
+	
+	public ADAVirtualContext(){
+		active_units = new List<string>();
+		level = "";
+	}
+}
+
+/// <summary>
+/// ADA positional context - used for adding a positional element to an ADA log entry
+/// </summary>
+public class ADAPositionalContext
+{
 	public float x;
 	public float y;
 	public float z;
@@ -91,51 +108,106 @@ public class ADAPosition : ADAData
 	public float rotx;
 	public float roty;
 	public float rotz;
+	public ADAPositionalContext(){
+		x = 0f;
+		y = 0f;
+		z = 0f;
+		rotx = 0f;
+		roty = 0f;
+		rotz = 0f;
+	}
+	public void setPosition(float iX, float iY, float iZ)
+	{
+		x = iX;
+		y = iY;
+		z = iZ;
+	}
+
+	public void setRotation(float iX, float iY, float iZ)
+	{
+		rotx = iX;
+		roty = iY;
+		rotz = iZ;
+	}
 }
 
-/**
- * An objective 
- */
-public class ADAObjectiveStart : ADAData{
-	public string objectiveName;
+
+/// <summary>
+/// ADA unit start - Start a unit of game play
+/// </summary>
+public class ADAUnitStart : ADAData 
+{
+	public string name; //Should be unique
+	public string parent_name; //This can be left blank if there is no parent for this unit
+	public ADAUnitStart(){
+		name = "";
+		parent_name = "";
+	}
 }
 
-public class ADAObjectiveComplete : ADAData{
-	public string objectiveName;
+public class ADAUnitEnd : ADAData 
+{
+	public string name; //Should be unique
+	public string parent_name; //This can be left blank if there is no parent for this unit
+	public ADAUnitEnd(){
+		name = "";
+		parent_name = "";
+	}
 }
 
-
-/**
- * A cycle is an activity that a player must complete in order to progress an objective.
- * Example: In fairplay, you may have an objective like "get funding". In order to do this
- * you must have conversations. Therefore, conversations are cycles. cycleEnd would be 
- * triggered when the conversation is exited. In progenitor x an objective may be "collect 
- * x cells" where populating cells would be the start of a cycle and collecting would be 
- * the end, if the gird is destroyed this would also trigger an unsuccessful cycle. 
- * Portal: objective is complete the room. CycleStart may be press the button. cycleEnd 
- * is the check to see if the player makes it through the door, or if the door closes 
- * and a player does not make it through. If a companion cube is needed, releasing one, 
- * and getting it would be cycleStart and cycleEnd.
- * 
- * OnTask - this is true if the current action will progress the current objective. If you
- * have multiple objectives you may send out 2 signals to ADA one that says the action is 
- * OnTask for objective 1 and one that is OnTask = false for objective 2.
- * 
- */
-public class ADACycleStart : ADAData{
-	public string objectiveName;
-	public string level;
-	public bool onTask; //true if the begining of this cycle is needed to successfuly complete objective
+/// <summary>
+/// ADA player action - subclass this to add logs for player actions
+/// </summary>
+public class ADAPlayerAction : ADAData 
+{
+	public ADAVirtualContext virtual_context;
+	public ADAPositionalContext positional_context;
+	public ADAPlayerAction(){
+		virtual_context = new ADAVirtualContext();
+		positional_context = new ADAPositionalContext();
+	}
 }
 
-public class ADACycleEnd : ADAData{
-	public string objectiveName;
-	public string level;
-	public bool success; //true if there is progress to objective
+/// <summary>
+/// ADA game event - subclass this to add game event data 
+/// </summary>
+public class ADAGameEvent : ADAData
+{
+	public ADAVirtualContext virtual_context;
+	public ADAGameEvent(){
+		virtual_context = new ADAVirtualContext();	
+	}
 }
 
-public class ADAQuitGame : ADAData{
-	public string level;
+/// <summary>
+/// ADA player choice - often in games players are asked to choose between several options
+/// Examples:
+/// identifying an emotion of an NPC
+/// Correctly identifying an bias
+/// Picking from a list of choices a correct answer
+/// Picking a choice in a conversation
+/// </summary>
+public class ADAPlayerChoice : ADAPlayerAction
+{
+	public string correct_answer;
+	public string player_answer;
+	public float answer_weight; //a ranged value determining what weight the players choice has. The game will determine the range examples could be -1 to 1 for a range of worst to best answer
+	public float time_to_answer; //How long did it take to answer the question (use the timer start and stop for easy calculation
+
+	public void start_timer()
+	{
+		time_to_answer = Time.realtimeSinceStartup;
+	}
+
+	public void stop_timer()
+	{
+		time_to_answer = Time.realtimeSinceStartup - time_to_answer;
+	}
+}
+
+public class ADAScoreChangeEvent : ADAGameEvent
+{
+	public float score; //The value of the score at this time
 }
 
 
@@ -147,3 +219,4 @@ public class GameInfo
 	public static string SCHEMA = "1-31-2012";
 }
 */
+
