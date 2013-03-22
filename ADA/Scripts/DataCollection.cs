@@ -108,6 +108,26 @@ public class DataCollection : MonoBehaviour
 		current_vc.level = Application.loadedLevelName;
 	}
 
+	//Try to flush the log before application quit
+	void OnApplicationQuit() {
+
+		ADAQuitGame log_quit = new ADAQuitGame();
+		LogPlayerAction(log_quit);
+
+		pushingData = true;
+		lastPush = Time.time;
+		string outgoingData = JsonMapper.ToJson(wrapper);
+		wrapper.data.Clear();
+		if(UserManager.isOnline)
+		{
+			StartCoroutine(PushDataOnline(outgoingData));
+		}
+		else
+		{
+			PushDataLocal(outgoingData);	
+		}
+
+	}
 	/// <summary>
 	/// Updates the current positional context - this will be inserted into all ADAPlayerAction structures
 	/// </summary>

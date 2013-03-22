@@ -74,7 +74,7 @@ public class ADAData
 	public string gameName {get; set;}
 	public string schema {get; set;}
 	public string ADAVersion = AdaInfo.ADA_VERSION;
-	public float timestamp { get; set; }
+	public string timestamp { get; set; }
 	public string session_token { get; set;}
 	public string ada_base_type { get; set;}
 	public string key { get; set; } 
@@ -210,7 +210,7 @@ public class ADAScoreChangeEvent : ADAGameEvent
 	public float score; //The value of the score at this time
 }
 
-
+public class ADAQuitGame : ADAPlayerAction {}
 /*  In order for the game name and schema to be set copy this class to the games file with data logging classes.  Set the game name and update the
  * schema string with the data that the game related data structures were last modified.  Example below:
 public class GameInfo
