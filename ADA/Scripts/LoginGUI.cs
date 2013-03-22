@@ -3,6 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 
+using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+using System;
+
 /// <summary>
 /// The GUI for the login screen
 /// </summary>
@@ -209,6 +214,12 @@ public class LoginGUI : MonoBehaviour
 			UserManager.isLoggedIn = true;
 			Debug.Log("No Network");
 
+			if(gameHandlesLogin)
+			{
+				UserManager.isLoggedIn = false;
+				return;
+			}
+
 		}
 #else
 		//Check for valid ip address
@@ -225,15 +236,15 @@ public class LoginGUI : MonoBehaviour
 
 
 		//Check for pre-saved auth_token in the player preferences and use if present
-		if(!serialNumberLogin && !silentSignin )
-		{
-			if(PlayerPrefs.HasKey("Auth_token") )
-			{
-				UserManager.userInfo.auth_token = PlayerPrefs.GetString("Auth_token");
-				UserManager.playerName = PlayerPrefs.GetString("player_name");
-				state = AuthStatus.VALIDATE_TOKEN;
-			}
-		}
+		//if(!serialNumberLogin && !silentSignin && !gameHandlesLogin )
+		//{
+		//	if(PlayerPrefs.HasKey("Auth_token") )
+		//	{
+		//		UserManager.userInfo.auth_token = PlayerPrefs.GetString("Auth_token");
+		//		UserManager.playerName = PlayerPrefs.GetString("player_name");
+		//		state = AuthStatus.VALIDATE_TOKEN;
+		//	}
+		//}
 
 		if(gameHandlesLogin)
 		{
@@ -341,6 +352,29 @@ public class LoginGUI : MonoBehaviour
 	public static void LoginADAUser(string username, string password)
 	{
 
+		//In the case with no network we are going to check to see if this user has an auth_token locally.
+		//Debug.Log("Login status: " + LoginGUI.use.status);
+		//Debug.Log("Login state: " + LoginGUI.use.state);
+		if(LoginGUI.use.state == LoginGUI.AuthStatus.NO_NET)
+		{
+			//This player has logged in before and we have an auth_token so let them go.
+			if(PlayerPrefs.HasKey(username))
+			{
+				UserManager.userInfo.auth_token = PlayerPrefs.GetString(username);
+				UserManager.playerName = username;
+				UserManager.isOnline = false;
+				UserManager.isLoggedIn = true;
+				LoginGUI.use.state = LoginGUI.AuthStatus.AUTHENTICATION_COMPLETE;
+			}
+			else
+			{
+				LoginGUI.use.status = "Must have network access to create a game";
+				UserManager.isLoggedIn = false;
+				UserManager.isOnline = false;
+			}
+			return;
+		}
+
 		LoginGUI.use.loginName = username;
 		LoginGUI.use.loginPassword = password;
 		LoginGUI.use.UpdateLinks();
@@ -363,7 +397,7 @@ public class LoginGUI : MonoBehaviour
 	/// </summary>
 	void OnGUI()
 	{	
-		if (silentSignin) return;
+		if (silentSignin || gameHandlesLogin) return;
 		//We lost connection and need to re-authenticate
 		//if(state == AuthStatus.AUTHENTICATION_COMPLETE && !UserManager.isLoggedIn)
 		//{
@@ -693,6 +727,13 @@ public class LoginGUI : MonoBehaviour
 				UserManager.isOnline = false;
 				yield return 0;
 			}
+			if(status.Contains("Invalid email"))
+			{
+				status = "PLAYER NOT FOUND!";
+				state = AuthStatus.AUTHENTICATION_COMPLETE;
+				UserManager.isOnline = false;
+				yield return 0;
+			}
 			//if we are trying to sign in silently and get ANY error just abort the login
 			if(silentSignin)
 			{
@@ -733,8 +774,7 @@ public class LoginGUI : MonoBehaviour
 		state = AuthStatus.AUTHENTICATION_COMPLETE;
 
 		//save the auth_token for later
-		PlayerPrefs.SetString("Auth_token", UserManager.userInfo.auth_token);
-		PlayerPrefs.SetString("player_name", loginName);
+		PlayerPrefs.SetString(loginName, UserManager.userInfo.auth_token);
 
 		//Look for logs that were previously collected and push them to the database
 		DataCollection.PushLocalToOnline();
@@ -834,8 +874,7 @@ public class LoginGUI : MonoBehaviour
 		state = AuthStatus.AUTHENTICATION_COMPLETE;
 
 		//save the auth_token for later
-		PlayerPrefs.SetString("Auth_token", UserManager.userInfo.auth_token);
-		PlayerPrefs.SetString("player_name", loginName);
+		PlayerPrefs.SetString(loginName, UserManager.userInfo.auth_token);
 
 		//Look for logs that were previously collected and push them to the database
 		DataCollection.PushLocalToOnline();

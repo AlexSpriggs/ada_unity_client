@@ -93,7 +93,13 @@ public class KoKActorStartAnimation : ADAGameEvent
 	public string animation_name;
 }
 
-public class KoKReputationChange : ADAScoreChangeEvent {}
+public class KoKReputationChange : ADAGameEvent 
+{
+	public float score;
+}
 
-public class KoKHealthChange : ADAScoreChangeEvent {}
+public class KoKHealthChange : ADAPlayerAction
+{
+	public float score;
+}
 

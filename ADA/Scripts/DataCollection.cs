@@ -196,7 +196,7 @@ public class DataCollection : MonoBehaviour
 		if (dc == null) return;
 		data.gameName = GameInfo.GAME_NAME;
 		data.schema = GameInfo.SCHEMA;
-		data.timestamp = Time.realtimeSinceStartup;
+		data.timestamp = System.DateTime.Now.ToUniversalTime().ToString();
 		data.session_token = UserManager.session_token;
 		data.key = data.GetType().ToString();
 		wrapper.data.Add(data);
@@ -210,21 +210,30 @@ public class DataCollection : MonoBehaviour
 	/// <returns>
 	/// A <see cref="IEnumerator"/>
 	/// </returns>
-	private static IEnumerator PushDataOnline(string outgoingData)
+	private static IEnumerator PushDataOnline(string outgoingData, string auth_token = "")
 	{
+
+		if(auth_token.Equals(""))
+		{
+			auth_token = UserManager.userInfo.auth_token;
+		}
+
 		if(Debug.isDebugBuild)
 		{
 			//Skip online write and just push the data locally in debug
 			PushDataLocal(outgoingData);
+
 		}
+
+
 		
 		WebMessage webMessage = new WebMessage();
 #if DATA_COLLECTION_DEBUG
-		Debug.Log("Writing Log Online");
+		Debug.Log("Writing Log Online: " + auth_token);
 		Debug.Log(outgoingData);
 #endif
 		yield return dc.StartCoroutine(webMessage.PostAuthenticated(collectionURL, 
-		                                            UserManager.userInfo.auth_token, outgoingData ));
+		                                            auth_token, outgoingData ));
 		if(webMessage.error == WebErrorCode.Error)
         {
 			//we had an error so write the data locally.
@@ -245,16 +254,18 @@ public class DataCollection : MonoBehaviour
 	{
 		if (dc == null) return;
 #if !UNITY_WEBPLAYER
-		//Debug.Log("Writing Log Local");	
+		Debug.Log("Writing Log Local");	
 		string stripedData = outgoingData.Substring(9, outgoingData.Length - 11) + ",";
-		//Debug.Log(stripedData);
+		Debug.Log(stripedData);
 		if(Debug.isDebugBuild)
 		{
+			Debug.Log(logPath+UserManager.session_token+".debug");
 			System.IO.File.AppendAllText(logPath+UserManager.session_token+".debug", stripedData);
 		}
 		else
 		{
-			System.IO.File.AppendAllText(logPath+"/"+UserManager.playerName+UserManager.session_token+".data", stripedData);
+			Debug.Log(logPath+"/"+UserManager.userInfo.auth_token+"_"+UserManager.playerName+UserManager.session_token+".data");
+			System.IO.File.AppendAllText(logPath+"/"+UserManager.userInfo.auth_token+"_"+UserManager.playerName+UserManager.session_token+".data", stripedData);
 		}
 		outgoingData = "";
 #endif
@@ -279,18 +290,19 @@ public class DataCollection : MonoBehaviour
 		for(int i=files.Length-1; i >= 0; i--)
 		{
 			Debug.Log("reading file: " + files[i]);
-			if(files[i].Contains(UserManager.playerName))
-			{
-				outgoingData += System.IO.File.ReadAllText(files[i]);
-				outgoingData = outgoingData.Substring(0, outgoingData.Length - 1);  //remove trailing comma
-				outgoingData += "]}";  //add closing brackets.
-				dc.StartCoroutine(PushDataOnline(outgoingData));
-				System.IO.File.Delete(files[i]);
-			}
-			else
-			{
-				Debug.Log("skipping file from different user: " + files[i]);	
-			}
+			//if(files[i].Contains(UserManager.playerName))
+			//{
+			string auth_token = files[i].Split('_')[0];
+			outgoingData += System.IO.File.ReadAllText(files[i]);
+			outgoingData = outgoingData.Substring(0, outgoingData.Length - 1);  //remove trailing comma
+			outgoingData += "]}";  //add closing brackets.
+			dc.StartCoroutine(PushDataOnline(outgoingData, auth_token));
+			System.IO.File.Delete(files[i]);
+			//}
+			//else
+			//{
+			//	Debug.Log("skipping file from different user: " + files[i]);	
+			//}
 		
 		}
 #endif
