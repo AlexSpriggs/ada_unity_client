@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEditor;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -9,7 +8,6 @@ using System.IO;
 public class AdaHeatmapData
 {
 	public string _id;
-	public string _type;
 	public string created_at;
 	public string updated_at;
 	public string game;
@@ -19,7 +17,7 @@ public class AdaHeatmapData
 	public double timestamp;
 	public string session_token;
 	public string key;
-	public string level;
+	//public string level;
 	public double x;
 	public double y;
 	public double z;
@@ -47,15 +45,12 @@ public class Heatmap : MonoBehaviour {
 	/// the url that we will be writing the data to.
 	/// </summary>
 	private static string heatmapURL;
-	private static string user_data_url;
 	private string heatmapPath = "/data/heatmap.json?";
-	private string userDataPath = "/user/user_data.json?";
 
-	public static Heatmap mapper;
+	public static Heatmap mapper { get; private set; }
 
 	public string dataKey;
 	public string startTime;
-	public List<int> UserIds;
 
 	string stuff;
 	public AdaHeatmapData[] allTheData;
@@ -73,24 +68,30 @@ public class Heatmap : MonoBehaviour {
 	public List<GameObject> players;
 
 	private bool dataFetching = false;
-	private bool initalized = false;
+	private bool initalized = true;
+	public bool StartIt = false;
 	public Texture2D mapTexture;
 	private GameObject parent;
 
-	public static int BLOCK_SIZE = 1;
+	public int BLOCK_SIZE = 10;
 
-
+	public string jsonPositionFile;
+	public string filePath = "";
 
 	void Awake()
 	{
 		if (mapper == null) mapper = this;
 		heatmapURL = serverURL + heatmapPath;
-		user_data_url = serverURL + userDataPath;
 		DontDestroyOnLoad(this);
 
 	}
 
+	// Use this for initialization
+	void Start () {
+	
 
+
+	}
 
 	void BuildTexture() {
 
@@ -133,7 +134,7 @@ public class Heatmap : MonoBehaviour {
 		foreach(KeyValuePair<Vector2,int> pair in counts)
 		{
 			Vector2 coord = pair.Key;
-			float percent = (float)pair.Value/(float)highest_hit;
+			float percent = Mathf.Log10((float)pair.Value/10.0f);
 			Color[] pixels = mapTexture.GetPixels((int)coord.x, (int)coord.y, BLOCK_SIZE, BLOCK_SIZE);
 			for(int i=0; i < pixels.Length; i++)
 			{
@@ -161,10 +162,10 @@ public class Heatmap : MonoBehaviour {
 		parent.transform.position = new Vector3(0,1,0);
 		Dictionary<Vector3, int> counts = new Dictionary<Vector3, int>();
 		foreach(AdaHeatmapData cpd in allTheData)
-		{
-			int cx =	(int)cpd.x + (int)cpd.x%BLOCK_SIZE;
-			int cy = 	(int)cpd.y + (int)cpd.y%BLOCK_SIZE;
-			int cz = 	(int)cpd.z + (int)cpd.z%BLOCK_SIZE;
+		{ 
+			int cx =	(int)cpd.x - (int)cpd.x%BLOCK_SIZE;
+			int cy = 	(int)cpd.y - (int)cpd.y%BLOCK_SIZE;
+			int cz = 	(int)cpd.z - (int)cpd.z%BLOCK_SIZE;
 			Vector3 key = new Vector3(cx, cy, cz);
 			if(counts.ContainsKey(key))
 			{
@@ -177,55 +178,53 @@ public class Heatmap : MonoBehaviour {
 		}
 
 		int highest_hit = 0;
+		int second_highest = 0;
 		float average = 0;
 		foreach(int count in counts.Values)
 		{
 			if(count > highest_hit)
 			{
+				second_highest = highest_hit;
 				highest_hit = count;
 			}
-
 			average += count;
 				
 		}
 
-		average = (float)average/(float)counts.Count;
-
 		DebugEx.Log("highest hit count: " + highest_hit);
-		DebugEx.Log("average hit count: " + average);
 		DebugEx.Log("System count: " + counts.Count);
-
+		average = (float)average/(float)counts.Count;
 
 		foreach(KeyValuePair<Vector3,int> pair in counts)
 		{
 			Vector3 coord = pair.Key;
+			//float percent = Mathf.Log((float)pair.Value/10f);
+			//float percent = (float)pair.Value/highest_hit;
 			float percent = 0;
-
-			//float percent = (float)pair.Value/(float)highest_hit;
-			//float percent = Mathf.Log((float)pair.Value);
+			Debug.Log("percent " + percent);
 			GameObject obj = (GameObject)Instantiate(particleSystemPrefab);
 			obj.transform.parent = parent.transform;
 			ParticleSystem ps = obj.GetComponent<ParticleSystem>();
 			ps.transform.position = coord;
 			ps.emissionRate = ps.emissionRate + (ps.emissionRate * percent);
 			//ps.startSize = ps.startSize * percent;
+			//ps.startColor = Color.Lerp(ps.startColor, Color.red, percent);
 			if(pair.Value > average)
 			{
-				ps.startColor = Color.Lerp(ps.startColor, new Color(.7f,0,0,.5f), (float)(pair.Value-average)/(float)average);
+				ps.startColor = Color.Lerp(new Color(0,.5f,0,.0f), new Color(.7f,0,0,1f), (float)(pair.Value-average)/(float)average);
 			}
 			else
 			{
-				ps.startColor = Color.Lerp(ps.startColor, new Color(0,0,.7f,.5f), (float)(pair.Value)/(float)average);
+				ps.startColor = Color.Lerp(new Color(0,.5f,0,.0f), new Color(0,0,0f,0f), (float)(pair.Value)/(float)average);
 			}
-
 		}
 
 	}
 
-	void InitUserPath(AdaHeatmapData[] userData)
+	void DrawLines()
 	{
 		userSets = new Dictionary<int, HeatmapData>();
-		foreach(AdaHeatmapData cpd in userData)
+		foreach(AdaHeatmapData cpd in allTheData)
 		{
 			if(userSets.ContainsKey(cpd.user_id))
 			{
@@ -270,7 +269,7 @@ public class Heatmap : MonoBehaviour {
 		{
 			return;
 		}
-
+		DebugEx.Log("Init heatmap");
 		initalized = true;
 		//BuildTexture();
 		SpawnParticleSystems();
@@ -282,37 +281,35 @@ public class Heatmap : MonoBehaviour {
 
 	}
 	
+	// Update is called once per frame
+	void Update () {
 
-	public void StartHeatmap () {
+		if(StartIt == false)
+		{
+			return;
+		}
 
 		if(dataFetching == false && UserManager.isLoggedIn)
 		{
 			dataFetching = true;
-			StartCoroutine(RequestHeatmap());
-		}
-		else
-		{
-			Debug.Log("you must be logged in to Ada to perform this action.");
-		}
-	}
-
-	public void StartUserData () {
-
-		if(dataFetching == false && UserManager.isLoggedIn)
-		{
-			dataFetching = true;
-			foreach(int id in UserIds)
+			initalized = false;
+			allTheData = null;
+			DestroyObject(parent);
+			if(filePath != "")
 			{
-				StartCoroutine(RequestUserData(id));
+				LoadDataFromDirectory();
 			}
+			else
+			{
+				LoadDataFromFile();
+			}
+
+			//StartCoroutine(RequestHeatmap());
+			StartIt = false;
 		}
-		else
-		{
-			Debug.Log("you must be logged in to Ada to perform this action.");
-		}
+		InitHeatmap();
+		
 	}
-
-
 
 	public void OnLevelWasLoaded(int level)
     {
@@ -324,10 +321,58 @@ public class Heatmap : MonoBehaviour {
 	
 	void OnGUI()
 	{
-
-	
-
+		int i = 0;
+		GUILayout.BeginVertical();
+		foreach(GameObject obj in players)
+		{
+			obj.renderer.enabled = GUILayout.Toggle(obj.renderer.enabled, obj.name);	
+			i++;
+		}
+		if(GUILayout.Button("Show all"))
+		{
+			foreach(GameObject obj in players)
+			{
+				obj.renderer.enabled = true;	
+			}
+		}
+		if(GUILayout.Button("Hide all"))
+		{
+			foreach(GameObject obj in players)
+			{
+				obj.renderer.enabled = false;	
+			}
+		}
+		GUILayout.EndVertical();
 		
+	}
+
+	private void LoadDataFromFile()
+	{
+		string jsonString = System.IO.File.ReadAllText(jsonPositionFile);
+		List<AdaHeatmapData> temp = new List<AdaHeatmapData>();
+		if(mapper.allTheData != null)
+		{
+			temp.AddRange(mapper.allTheData);
+		}
+		temp.AddRange(JsonMapper.ToObject<AdaHeatmapData[]>(jsonString));
+		mapper.allTheData = temp.ToArray();
+		dataFetching = false;
+	}
+
+	private void LoadDataFromDirectory()
+	{
+		string[] files = System.IO.Directory.GetFiles(filePath);
+		Debug.Log("filePath == " + filePath);
+		Debug.Log("file count " + files.Length);
+		for(int i=0; i < files.Length; i++)
+		{
+			if(files[i].Contains(".json"))
+			{
+				Debug.Log("reading file " + files[i]);
+				jsonPositionFile = files[i];
+				LoadDataFromFile();
+			}
+		}
 	}
 
 	/// <summary>
@@ -341,8 +386,10 @@ public class Heatmap : MonoBehaviour {
 
 
 		WebMessage webMessage = new WebMessage();
+		DebugEx.Log("Request heatmap");
 
-		string url = heatmapURL + "&gameName=" + GameInfo.GAME_NAME + "&schema=" + GameInfo.SCHEMA + "&level=" +  Application.loadedLevelName + "&key=" + mapper.dataKey + "&since=" + mapper.startTime.ToString() + "&auth_token=" + UserManager.userInfo.auth_token.ToString();
+		//string url = heatmapURL + "&gameName=" + GameInfo.GAME_NAME + "&level=" +  Application.loadedLevelName + "&key=" + mapper.dataKey + "&since=" + mapper.startTime.ToString() + "&auth_token=" + UserManager.userInfo.auth_token.ToString();
+		string url = heatmapURL + "&gameName=" + GameInfo.GAME_NAME + "&key=" + mapper.dataKey + "&since=" + mapper.startTime.ToString() + "&auth_token=" + UserManager.userInfo.auth_token.ToString();
 
 		DebugEx.Log(url);
 		yield return mapper.StartCoroutine(webMessage.PostNoData(url));
@@ -356,7 +403,6 @@ public class Heatmap : MonoBehaviour {
 		{
 			DebugEx.Log(webMessage.www.text);
 			mapper.allTheData = JsonMapper.ToObject<AdaHeatmapData[]>(webMessage.www.text);
-			mapper.InitHeatmap();
 
 		}
 		catch(JsonException)
@@ -368,50 +414,6 @@ public class Heatmap : MonoBehaviour {
 			}
 		}
 
-		mapper.dataFetching = false;
-		
-	}
-
-	/// <summary>
-	/// Get one users data
-	/// </summary>
-	/// <returns>
-	/// A <see cref="IEnumerator"/>
-	/// </returns>
-	private static IEnumerator RequestUserData(int user_id)
-	{
-
-
-		WebMessage webMessage = new WebMessage();
-		AdaHeatmapData[] userData;
-
-		string url = user_data_url + "&gameName=" + GameInfo.GAME_NAME + "&schema=" + GameInfo.SCHEMA + "&level=" +  Application.loadedLevelName + "&key=" + mapper.dataKey + "&user_id=" + user_id + "&auth_token=" + UserManager.userInfo.auth_token.ToString();
-
-		DebugEx.Log(url);
-		yield return mapper.StartCoroutine(webMessage.PostNoData(url));
-		if(webMessage.error == WebErrorCode.Error)
-        {
-			DebugEx.LogError("User Data retreival failed " + webMessage.extendedError);
-            yield break;
-        }
-
-		try 
-		{
-			DebugEx.Log(webMessage.www.text);
-			userData = JsonMapper.ToObject<AdaHeatmapData[]>(webMessage.www.text);
-			mapper.InitUserPath(userData);
-
-		}
-		catch(JsonException)
-		{
-            if(webMessage.error == WebErrorCode.None)
-			{
-				DebugEx.LogError("User Data retreival failed to parse");
-				yield break;
-			}
-		}
-
-		mapper.dataFetching = false;
 		
 	}
 }

@@ -28,17 +28,23 @@ public class KoKContinueGame : ADAGameEvent {}
 public class KoKPlayerMovement : ADAPlayerAction {}
 
 
-public class KoKEmotionChoice : ADAPlayerChoice {}
+public class KoKEmotionChoice : ADAPlayerChoice {
+	public string questName;	
+}
 
 
 public class KoKEmotionCalibration : ADAPlayerAction
 {
+	public string questName;
 	public double correlation;  					//What the correlation to the recording was
 	public bool success; 						//Did the game consider this successful
 	public List<double> calibration_values; 	//The raw calibration values
+	public string emotion;						//the emotion you are calibrating 
 }
 
-public class KoKConversationChoice : ADAPlayerChoice {}
+public class KoKConversationChoice : ADAPlayerChoice {
+	public string questName;
+}
 
 public class KoKTool : ADAPlayerAction
 {

@@ -128,6 +128,7 @@ public class DataCollection : MonoBehaviour
 		}
 
 	}
+
 	/// <summary>
 	/// Updates the current positional context - this will be inserted into all ADAPlayerAction structures
 	/// </summary>
@@ -257,12 +258,12 @@ public class DataCollection : MonoBehaviour
 		if(webMessage.error == WebErrorCode.Error)
         {
 			//we had an error so write the data locally.
-            //Debug.Log(webMessage.extendedError);
+            Debug.Log(webMessage.extendedError);
 			PushDataLocal(outgoingData);
             yield break;
         }
 		
-		//Debug.Log("Online write complete");
+		Debug.Log("Online write complete");
 		pushingData = false;
 		
 	}
@@ -279,7 +280,7 @@ public class DataCollection : MonoBehaviour
 		Debug.Log(stripedData);
 		if(Debug.isDebugBuild)
 		{
-			Debug.Log(logPath+UserManager.session_token+".debug");
+			//Debug.Log(logPath+UserManager.session_token+".debug");
 			System.IO.File.AppendAllText(logPath+UserManager.session_token+".debug", stripedData);
 		}
 		else
@@ -301,7 +302,7 @@ public class DataCollection : MonoBehaviour
 		if (dc == null) return;
 #if !UNITY_WEBPLAYER
 		StreamReader logFile;
-		Debug.Log("Push Local to Online");	
+		//Debug.Log("Push Local to Online");	
 		string line = "";
 		string outgoingData = "{\"data\":[";
 		Debug.Log("logPath == " + logPath);

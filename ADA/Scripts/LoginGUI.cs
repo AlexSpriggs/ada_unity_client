@@ -3,11 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System;
 
-using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;
-using System;
-
 /// <summary>
 /// The GUI for the login screen
 /// </summary>
@@ -205,8 +200,9 @@ public class LoginGUI : MonoBehaviour
 		state = AuthStatus.FIND_PREVIOUS_TOKEN;
 
 		Debug.Log("ADA Login Init!");
-
+		Debug.Log("Application.internetReachability != NetworkReachability.ReachableViaLocalAreaNetwork == " + (Application.internetReachability != NetworkReachability.ReachableViaLocalAreaNetwork));
 		//if we are on an iPhone check for a network connection
+		UserManager.session_token = DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
 #if UNITY_IPHONE
 		if(Application.internetReachability != NetworkReachability.ReachableViaLocalAreaNetwork && !serialNumberLogin)
 		{
@@ -216,7 +212,6 @@ public class LoginGUI : MonoBehaviour
 
 			if(gameHandlesLogin)
 			{
-				UserManager.isLoggedIn = false;
 				return;
 			}
 
@@ -229,7 +224,7 @@ public class LoginGUI : MonoBehaviour
 			UserManager.isLoggedIn = true;
 		}
 #endif
-		UserManager.session_token = DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
+
 		//state = LoginGUI.AuthStatus.NO_NET;
 
 
@@ -368,7 +363,7 @@ public class LoginGUI : MonoBehaviour
 			}
 			else
 			{
-				LoginGUI.use.status = "Must have network access to create a game";
+				LoginGUI.use.status = "Must have network access\n to create a game";
 				UserManager.isLoggedIn = false;
 				UserManager.isOnline = false;
 			}
@@ -721,6 +716,13 @@ public class LoginGUI : MonoBehaviour
 				state = AuthStatus.NO_NET;
 			}
 			if(status.Contains("401"))
+			{
+				status = "PLAYER NOT FOUND!";
+				state = AuthStatus.AUTHENTICATION_COMPLETE;
+				UserManager.isOnline = false;
+				yield return 0;
+			}
+			if(status.Contains("500"))
 			{
 				status = "PLAYER NOT FOUND!";
 				state = AuthStatus.AUTHENTICATION_COMPLETE;

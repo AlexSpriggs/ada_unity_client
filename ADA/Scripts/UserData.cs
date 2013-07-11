@@ -205,12 +205,10 @@ public class ADAPlayerChoice : ADAPlayerAction
 	}
 }
 
-public class ADAScoreChangeEvent : ADAGameEvent
-{
-	public float score; //The value of the score at this time
-}
-
 public class ADAQuitGame : ADAPlayerAction {}
+
+
+
 /*  In order for the game name and schema to be set copy this class to the games file with data logging classes.  Set the game name and update the
  * schema string with the data that the game related data structures were last modified.  Example below:
 public class GameInfo
