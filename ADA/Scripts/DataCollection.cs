@@ -93,11 +93,13 @@ public class DataCollection : MonoBehaviour
 			if(UserManager.isOnline)
 			{
 				StartCoroutine(PushDataOnline(outgoingData));
+				PushLocalToOnline();
 			}
 			else
 			{
 				PushDataLocal(outgoingData);	
 			}
+			
 		}
 		
 	}
@@ -120,6 +122,7 @@ public class DataCollection : MonoBehaviour
 		wrapper.data.Clear();
 		if(UserManager.isOnline)
 		{
+			PushLocalToOnline();
 			StartCoroutine(PushDataOnline(outgoingData));
 		}
 		else
@@ -231,7 +234,7 @@ public class DataCollection : MonoBehaviour
 	/// <returns>
 	/// A <see cref="IEnumerator"/>
 	/// </returns>
-	private static IEnumerator PushDataOnline(string outgoingData, string auth_token = "")
+	private static IEnumerator PushDataOnline(string outgoingData, string auth_token = "", string filename = "")
 	{
 
 		if(auth_token.Equals(""))
@@ -260,10 +263,15 @@ public class DataCollection : MonoBehaviour
 			//we had an error so write the data locally.
             Debug.Log(webMessage.extendedError);
 			PushDataLocal(outgoingData);
+			
             yield break;
         }
 		
 		Debug.Log("Online write complete");
+		if(!filename.Equals(""))
+		{
+			System.IO.File.Delete(filename);	
+		}
 		pushingData = false;
 		
 	}
@@ -299,10 +307,12 @@ public class DataCollection : MonoBehaviour
 	/// </summary>
 	public static void PushLocalToOnline()
 	{
+		
+		Debug.Log("Called:PushLocalToOnline");
 		if (dc == null) return;
 #if !UNITY_WEBPLAYER
 		StreamReader logFile;
-		//Debug.Log("Push Local to Online");	
+		Debug.Log("Push Local to Online");	
 		string line = "";
 		string outgoingData = "{\"data\":[";
 		Debug.Log("logPath == " + logPath);
@@ -311,22 +321,19 @@ public class DataCollection : MonoBehaviour
 		for(int i=files.Length-1; i >= 0; i--)
 		{
 			Debug.Log("reading file: " + files[i]);
-			//if(files[i].Contains(UserManager.playerName))
-			//{
 			string auth_token = files[i].Split('_')[0];
+			auth_token = auth_token.Substring(auth_token.LastIndexOf('/') + 1);
+			Debug.Log("AuthToken: " + auth_token);
 			outgoingData += System.IO.File.ReadAllText(files[i]);
 			outgoingData = outgoingData.Substring(0, outgoingData.Length - 1);  //remove trailing comma
 			outgoingData += "]}";  //add closing brackets.
-			dc.StartCoroutine(PushDataOnline(outgoingData, auth_token));
-			System.IO.File.Delete(files[i]);
-			//}
-			//else
-			//{
-			//	Debug.Log("skipping file from different user: " + files[i]);	
-			//}
+			string filename = files[i];
+			dc.StartCoroutine(PushDataOnline(outgoingData, auth_token, filename));
+			
 		
 		}
 #endif
+		pushingData = false;
 		//Added since something goes wonky if we have a function with nothing in it...
 		return;
 	}
