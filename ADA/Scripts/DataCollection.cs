@@ -246,7 +246,7 @@ public class DataCollection : MonoBehaviour
 		{
 			//Skip online write and just push the data locally in debug
 			PushDataLocal(outgoingData);
-
+			yield break;
 		}
 
 
@@ -254,7 +254,7 @@ public class DataCollection : MonoBehaviour
 		WebMessage webMessage = new WebMessage();
 #if DATA_COLLECTION_DEBUG
 		Debug.Log("Writing Log Online: " + auth_token);
-		Debug.Log(outgoingData);
+		//Debug.Log(outgoingData);
 #endif
 		yield return dc.StartCoroutine(webMessage.PostAuthenticated(collectionURL, 
 		                                            auth_token, outgoingData ));
@@ -262,8 +262,10 @@ public class DataCollection : MonoBehaviour
         {
 			//we had an error so write the data locally.
             Debug.Log(webMessage.extendedError);
-			PushDataLocal(outgoingData);
-			
+			if(filename.Equals(""))
+			{
+				PushDataLocal(outgoingData);
+			}
             yield break;
         }
 		
@@ -324,6 +326,7 @@ public class DataCollection : MonoBehaviour
 			string auth_token = files[i].Split('_')[0];
 			auth_token = auth_token.Substring(auth_token.LastIndexOf('/') + 1);
 			Debug.Log("AuthToken: " + auth_token);
+
 			outgoingData += System.IO.File.ReadAllText(files[i]);
 			outgoingData = outgoingData.Substring(0, outgoingData.Length - 1);  //remove trailing comma
 			outgoingData += "]}";  //add closing brackets.
