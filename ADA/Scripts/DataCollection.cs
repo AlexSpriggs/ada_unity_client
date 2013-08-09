@@ -65,9 +65,10 @@ public class DataCollection : MonoBehaviour
 		logPath = Application.persistentDataPath; //.Substring(0, Application.dataPath.Length - 5) + "/Documents/";
 		if(Application.isEditor)
 		{
-			logPath = ".";
+			//logPath = ".";
 		}
 		Debug.Log("********************" +Application.dataPath.Substring(0, Application.dataPath.Length - 5) + "/Documents/");
+		
 #else
 		logPath = "";
 #endif
@@ -79,29 +80,40 @@ public class DataCollection : MonoBehaviour
 		unit_start = new ADAUnitStart();
 		unit_end = new ADAUnitEnd();
 	}
-	
-	void Update()
+	void Start(){
+		StartCoroutine(PushDataRoutine());	
+	}
+	bool firstRun = true;
+	IEnumerator PushDataRoutine()
 	{
-		//right now flush the data if there is anything to write.
-		float elapsedTime = Time.time - lastPush;
-		if((elapsedTime > pushRate) && wrapper.data.Count != 0 && !pushingData)
-		{
-			pushingData = true;
-			lastPush = Time.time;
-			string outgoingData = JsonMapper.ToJson(wrapper);
-			wrapper.data.Clear();
-			if(UserManager.isOnline)
-			{
-				StartCoroutine(PushDataOnline(outgoingData));
-				PushLocalToOnline();
+		while (true){
+			if (firstRun){
+				firstRun = false;
+				yield return StartCoroutine(PushLocalToOnline());
 			}
-			else
+			//right now flush the data if there is anything to write.
+			float elapsedTime = Time.time - lastPush;
+			if((elapsedTime > pushRate) && wrapper.data.Count != 0 && !pushingData)
 			{
-				PushDataLocal(outgoingData);	
+				pushingData = true;
+				lastPush = Time.time;
+				string outgoingData = JsonMapper.ToJson(wrapper);
+				wrapper.data.Clear();
+				if(UserManager.isOnline)
+				{
+					Debug.Log	("Online");
+					yield return StartCoroutine(PushDataOnline(outgoingData));
+					yield return StartCoroutine(PushLocalToOnline());
+				}
+				else
+				{
+					Debug.Log("Not Online	");
+					PushDataLocal(outgoingData);	
+				}
+				
 			}
-			
+			yield return 0;
 		}
-		
 	}
 
 	//Update the current virtual context with the level name
@@ -122,11 +134,13 @@ public class DataCollection : MonoBehaviour
 		wrapper.data.Clear();
 		if(UserManager.isOnline)
 		{
-			PushLocalToOnline();
+			Debug.Log("Is Online, Trying to write");
+			StartCoroutine(PushLocalToOnline());
 			StartCoroutine(PushDataOnline(outgoingData));
 		}
 		else
 		{
+			Debug.Log("Not Online, Pushing Local");
 			PushDataLocal(outgoingData);	
 		}
 
@@ -234,20 +248,21 @@ public class DataCollection : MonoBehaviour
 	/// <returns>
 	/// A <see cref="IEnumerator"/>
 	/// </returns>
-	private static IEnumerator PushDataOnline(string outgoingData, string auth_token = "", string filename = "")
+	private static IEnumerator PushDataOnline(string outgoingData, bool localToOnline = false, string auth_token = "", string filename = "")
 	{
-
+	Debug.Log("Writing Online");
 		if(auth_token.Equals(""))
 		{
 			auth_token = UserManager.userInfo.auth_token;
 		}
 
-		if(Debug.isDebugBuild)
-		{
-			//Skip online write and just push the data locally in debug
-			PushDataLocal(outgoingData);
-			yield break;
-		}
+		//if(Debug.isDebugBuild)
+//		{
+//			Debug.Log("This is a debug build!");
+//			//Skip online write and just push the data locally in debug
+//			PushDataLocal(outgoingData);
+//			yield break;
+//		}
 
 
 		
@@ -262,7 +277,7 @@ public class DataCollection : MonoBehaviour
         {
 			//we had an error so write the data locally.
             Debug.Log(webMessage.extendedError);
-			if(filename.Equals(""))
+			if(!localToOnline)
 			{
 				PushDataLocal(outgoingData);
 			}
@@ -291,13 +306,13 @@ public class DataCollection : MonoBehaviour
 		if(Debug.isDebugBuild)
 		{
 			//Debug.Log(logPath+UserManager.session_token+".debug");
-			System.IO.File.AppendAllText(logPath+UserManager.session_token+".debug", stripedData);
+			System.IO.File.AppendAllText(logPath+UserManager.session_token+".data", stripedData);
 		}
 		else
 		{
 			Debug.Log(logPath+"/"+UserManager.userInfo.auth_token+"_"+UserManager.playerName+UserManager.session_token+".data");
 			System.IO.File.AppendAllText(logPath+"/"+UserManager.userInfo.auth_token+"_"+UserManager.playerName+UserManager.session_token+".data", stripedData);
-		}
+		}	
 		outgoingData = "";
 #endif
 		pushingData = false;
@@ -307,16 +322,15 @@ public class DataCollection : MonoBehaviour
 	/// <summary>
 	/// Pushes previously collected local logs to online
 	/// </summary>
-	public static void PushLocalToOnline()
+	public static IEnumerator PushLocalToOnline()
 	{
 		
 		Debug.Log("Called:PushLocalToOnline");
-		if (dc == null) return;
+		if (dc == null) yield return 0;
 #if !UNITY_WEBPLAYER
 		StreamReader logFile;
 		Debug.Log("Push Local to Online");	
 		string line = "";
-		string outgoingData = "{\"data\":[";
 		Debug.Log("logPath == " + logPath);
 		string[] files = System.IO.Directory.GetFiles(logPath, "*.data");
 		Debug.Log("File Count: " + files.Length);
@@ -326,19 +340,20 @@ public class DataCollection : MonoBehaviour
 			string auth_token = files[i].Split('_')[0];
 			auth_token = auth_token.Substring(auth_token.LastIndexOf('/') + 1);
 			Debug.Log("AuthToken: " + auth_token);
-
+			
+			string outgoingData = "{\"data\":[";
 			outgoingData += System.IO.File.ReadAllText(files[i]);
 			outgoingData = outgoingData.Substring(0, outgoingData.Length - 1);  //remove trailing comma
 			outgoingData += "]}";  //add closing brackets.
 			string filename = files[i];
-			dc.StartCoroutine(PushDataOnline(outgoingData, auth_token, filename));
+			yield return dc.StartCoroutine(PushDataOnline(outgoingData, true, auth_token, filename));
 			
 		
 		}
 #endif
 		pushingData = false;
 		//Added since something goes wonky if we have a function with nothing in it...
-		return;
+		yield return 0;
 	}
 	
 }
